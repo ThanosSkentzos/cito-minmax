@@ -1,0 +1,18 @@
+[project]
+name = "cit-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "astra-toolbox>=2.2.0",
+    "dateutils>=0.6.12",
+    "jupyterlab>=4.3.5",
+    "matplotlib>=3.10.0",
+    "numpy>=2.2.2",
+    "pyparsing>=3.2.1",
+    "pyqt5>=5.15.11",
+    "scikit-image>=0.25.1",
+    "scikit-learn>=1.6.1",
+    "tqdm>=4.67.1",
+]
