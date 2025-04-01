@@ -1,0 +1,9 @@
+# Create new Conda environment
+conda create -y -n astra python=3.9
+source activate astra
+
+# Install Astra Toolbox
+conda install -y -c astra-toolbox astra-toolbox
+
+# check if cuda enabled and if astra works properly
+python -c "import astra; print(astra.use_cuda()); print(astra.test())"
