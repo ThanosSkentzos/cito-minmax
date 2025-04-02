@@ -18,7 +18,8 @@ volume[left_lung] = 1
 
 # Create lung mesh using marching cubes
 verts, faces, _, _ = measure.marching_cubes(volume, level=0.8)
-faces_pv = np.hstack([np.full((faces.shape[0], 1), 3), faces]).astype(np.int32).flatten()
+# faces_pv = np.hstack([np.full((faces.shape[0], 1), 3), faces]).astype(np.int32).flatten()
+faces_pv = np.array([[3,*faces[i].flatten()] for i in range(faces.shape[0])],dtype=np.int32).flatten()
 lung_mesh = pv.PolyData(verts, faces_pv)
 
 # --- Step 2: Generate bronchial tree with controlled main + primary + branching ---
@@ -46,11 +47,29 @@ def generate_bronchial_tree(root, depth, volume=volume, angle_variation=0.5, bra
         if 0 <= i < vol_shape[0] and 0 <= j < vol_shape[1] and 0 <= k < vol_shape[2]:
             return volume[i, j, k] > 0
         return False
+    def distance(start_point,vector):
+        step = 2
+        is_in = True
+        current_pt = start_point
+        initial_scale = 0
+        scale = 1 
+        while True:
+            scale *= 1.1
+            current_pt = start_point + vector * (initial_scale + scale)
+            if not is_inside_lung(current_pt):
+                initial_scale += scale/2
+                if scale < 4:
+                    return initial_scale 
+                scale = 1
 
     def branch(p, d, level):
         if level == 0:
             return
-        end = p + d * SCALE_FACTOR * (level/MAX_DEPTH)
+        if level != MAX_DEPTH:
+            scale = 0.7*distance(p,d)
+        else:
+            scale = SCALE_FACTOR
+        end = p + d * scale * (level/MAX_DEPTH)
         if is_inside_lung(end):
             points.append(p)
             points.append(end)
@@ -101,9 +120,9 @@ def draw_cylinders(points, connections, depths, radius=1.5):
     return tubes
 
 # --- Create Bronchial Tree -----
-MAX_DEPTH = 10
+MAX_DEPTH = 8
 SCALE_FACTOR = 10
-BRANCHES = 5
+BRANCHES = 3
 points, conns, depths = generate_bronchial_tree(
     root=np.array([50, 50, 0]),
     depth=MAX_DEPTH,
@@ -111,7 +130,6 @@ points, conns, depths = generate_bronchial_tree(
     angle_variation=0.5,
     branches_per_node=BRANCHES
 )
-
 bronchi = draw_cylinders(points, conns, depths)
 
 # Plot
