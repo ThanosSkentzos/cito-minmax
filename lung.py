@@ -3,6 +3,7 @@ import numpy as np
 import pyvista as pv
 from skimage import measure
 
+np.random.seed(42)
 # --- Step 1: Create lung volume ---
 x, y, z = np.ogrid[-1:1:100j, -1:1:100j, -1:1:100j]
 volume = np.zeros((100, 100, 100), dtype=np.uint8)
