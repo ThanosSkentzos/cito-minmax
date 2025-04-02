@@ -13,9 +13,6 @@ volume[right_lung] = 1
 
 # Left lung with cardiac notch
 left_lung = (((x - 0.5) / 0.45) ** 2 + ((y + 0.05) / 0.35) ** 2 + (z / 0.75) ** 2) < 1
-# cardiac_notch_mask = (x > 0) & (y > 0.1)
-# cardiac_notch_mask = np.broadcast_to(cardiac_notch_mask, left_lung.shape)
-# left_lung = left_lung & ~cardiac_notch_mask
 volume[left_lung] = 1
 
 # Create lung mesh using marching cubes
@@ -24,10 +21,11 @@ faces_pv = np.hstack([np.full((faces.shape[0], 1), 3), faces]).astype(np.int32).
 lung_mesh = pv.PolyData(verts, faces_pv)
 
 # --- Step 2: Generate bronchial tree with controlled main + primary + branching ---
-def generate_bronchial_tree(root, depth, scale, angle_variation=0.5, branches_per_node=4):
+def generate_bronchial_tree(root, depth, volume=volume, angle_variation=0.5, branches_per_node=10):
     points = []
     connections = []
     depths = []
+    vol_shape = volume.shape
 
     def random_rotation(base_direction, angle):
         axis = np.random.randn(3)
@@ -41,20 +39,28 @@ def generate_bronchial_tree(root, depth, scale, angle_variation=0.5, branches_pe
             [t*x*z - s*y, t*y*z + s*x, t*z*z + c    ]
         ])
         return R @ base_direction
+    
+    def is_inside_lung(pt):
+        i, j, k = np.round(pt).astype(int)
+        if 0 <= i < vol_shape[0] and 0 <= j < vol_shape[1] and 0 <= k < vol_shape[2]:
+            return volume[i, j, k] > 0
+        return False
 
     def branch(p, d, level):
         if level == 0:
             return
-        end = p + d * scale * level
-        points.append(p)
-        points.append(end)
-        connections.append((len(points) - 2, len(points) - 1))
-        depths.append(depth - level + 1)
-        for _ in range(branches_per_node):
-            angle = np.random.uniform(-angle_variation * np.pi, angle_variation * np.pi)
-            new_dir = random_rotation(d, angle)
-            new_dir = new_dir / np.linalg.norm(new_dir)
-            branch(end, new_dir, level - 1)
+        end = p + d * SCALE_FACTOR * (level/MAX_DEPTH)
+        if is_inside_lung(end):
+            points.append(p)
+            points.append(end)
+            connections.append((len(points) - 2, len(points) - 1))
+            depths.append(depth - level + 1)
+            for _ in range(branches_per_node):
+                angle = np.random.uniform(-angle_variation * np.pi, angle_variation * np.pi)
+                new_dir = random_rotation(d, angle)
+                new_dir = new_dir / np.linalg.norm(new_dir)
+
+                branch(end, new_dir, level - 1)
 
     # Main trachea up the Z axis
     main_start = root
@@ -75,42 +81,37 @@ def generate_bronchial_tree(root, depth, scale, angle_variation=0.5, branches_pe
     return np.array(points), connections, depths
 
 # --- Step 3: Draw cylinders, clip depth >= 3 outside lungs ---
-def draw_cylinders(points, connections, depths, volume, radius=1.5 , min_clip_depth=3):
+def draw_cylinders(points, connections, depths, radius=1.5):
     tubes = []
-    vol_shape = volume.shape
-
-    def is_inside_lung(pt):
-        i, j, k = np.round(pt).astype(int)
-        if 0 <= i < vol_shape[0] and 0 <= j < vol_shape[1] and 0 <= k < vol_shape[2]:
-            return volume[i, j, k] > 0
-        return False
 
     for i, (start_i, end_i) in enumerate(connections):
         start = points[start_i]
         end = points[end_i]
         depth = depths[i]
-        if depth < min_clip_depth or (is_inside_lung(start) and is_inside_lung(end)):
-            direction = end - start
-            center = (start + end) / 2
-            level_scale = max(0.1, 1 - 0.2*depth)
-            tube = pv.Cylinder(center=center,
-                            direction=direction,
-                            radius=radius * level_scale,
-                            height=np.linalg.norm(direction),
-                            resolution=16)
-            tubes.append(tube)
+        direction = end - start
+        center = (start + end) / 2
+        level_scale = max(0.1, 1 - 0.2*depth)
+        tube = pv.Cylinder(center=center,
+                        direction=direction,
+                        radius=radius * level_scale,
+                        height=np.linalg.norm(direction),
+                        resolution=16)
+        tubes.append(tube)
     return tubes
 
-# --- Step 4: Build and visualize ---
+# --- Create Bronchial Tree -----
+MAX_DEPTH = 10
+SCALE_FACTOR = 10
+BRANCHES = 5
 points, conns, depths = generate_bronchial_tree(
     root=np.array([50, 50, 0]),
-    depth=6,
-    scale=3,
+    depth=MAX_DEPTH,
+    volume=volume,
     angle_variation=0.5,
-    branches_per_node=4
+    branches_per_node=BRANCHES
 )
 
-bronchi = draw_cylinders(points, conns, depths, volume=volume, min_clip_depth=3)
+bronchi = draw_cylinders(points, conns, depths)
 
 # Plot
 plotter = pv.Plotter()
