@@ -31,3 +31,33 @@ projector = astra.create_projector("cuda", proj_geom, vol)
 b = astra.creators.create_sino(phantom_id,projector)
 b
 # %%
+import numpy as np
+from utils import load_file
+bro = load_file("bro.npy")
+bro
+volume = np.zeros([100,100,100]).astype(float)
+volume[*bro.T] = 1 # in xyz
+volume = volume.transpose([2,1,0])
+vol = astra.create_vol_geom(*volume.shape)
+vol
+# %%
+phantom_id = astra.data3d.create('-vol',vol,volume)
+
+# %% astra projection
+angles = np.linspace(0, np.pi, 180,False)
+det_count = 100
+det_width = 1
+proj_geom = astra.create_proj_geom('parallel3d', 1, 1, 100, 100, angles)
+# proj_geom = astra.create_proj_geom("parallel3d", det_width,det_width,det_count, det_count, angles)
+# projector = astra.create_projector("line", proj_geom, vol)
+# %%
+id,sino = astra.creators.create_sino3d_gpu(volume,proj_geom,vol)
+sino = sino.transpose([1,0,2])
+sino.shape
+#%%
+import matplotlib.pyplot as plt
+for i in range(180):
+    s = sino.flatten()
+    plt.imshow(sino[i,:,:],cmap='gray')
+    plt.pause(0.001)
+# %%
