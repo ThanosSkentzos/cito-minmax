@@ -2,12 +2,7 @@
 import numpy as np
 import pyvista as pv
 from skimage import measure
-from skimage.draw import line_nd
-from skimage.morphology import ball
-from scipy.ndimage import binary_dilation
-BODY = 0
-LUNG = .1
-BRONCI = 1
+from utils import save_file,load_file
 
 np.random.seed(42)
 # --- Step 1: Create lung volume ---
@@ -28,12 +23,6 @@ verts, faces, _, _ = measure.marching_cubes(volume, level=0.8)
 faces_pv = np.array([[3,*faces[i].flatten()] for i in range(faces.shape[0])],dtype=np.int32).flatten()
 lung_mesh = pv.PolyData(verts, faces_pv)
 
-def load_file(name):
-    with open(name,"rb") as f:
-        return np.load(f)
-def save_file(name,array):
-    with open(name,"wb") as f:
-        return np.save(f,array)
 
 # --- Step 2: Generate bronchial tree with controlled main + primary + branching ---
 def generate_bronchial_tree(root, depth, volume=volume, angle_variation=0.5, branches_per_node=10):
@@ -132,20 +121,6 @@ def draw_cylinders(points, connections, depths, radius=1.5):
         tubes.append(tube)
     return tubes
 
-def fill_cylinders(vol:np.ndarray,points,connections,depths,radius=10,level = BRONCI):
-    for i, (start_i,end_i) in enumerate(connections):
-        start = points[start_i]
-        end = points[end_i]
-        depth = depths[i]
-        width_scale = max(0.1,1-0.2*depth)
-        coords = line_nd(start,end)
-        r = radius* width_scale
-        ball_struct = ball(r)
-        temp_vol = np.zeros_like(vol)
-        temp_vol[tuple(coords)] = 1
-        thick_line = binary_dilation(temp_vol,structure=ball_struct)
-        volume[thick_line] = np.maximum(volume[thick_line],level)
-        
 # --- Create Bronchial Tree -----
 MAX_DEPTH = 5
 SCALE_FACTOR = 10
