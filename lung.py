@@ -2,11 +2,17 @@
 import numpy as np
 import pyvista as pv
 from skimage import measure
+from skimage.draw import line_nd
+from skimage.morphology import ball
+from scipy.ndimage import binary_dilation
+BODY = 0
+LUNG = .1
+BRONCI = 1
 
 np.random.seed(42)
 # --- Step 1: Create lung volume ---
 x, y, z = np.ogrid[-1:1:100j, -1:1:100j, -1:1:100j]
-volume = np.zeros((100, 100, 100), dtype=np.uint8)
+volume = np.zeros((100, 100, 100), dtype=np.float32)
 
 # Right lung
 right_lung = (((x + 0.5) / 0.5) ** 2 + (y / 0.35) ** 2 + (z / 0.8) ** 2) < 1
@@ -119,8 +125,22 @@ def draw_cylinders(points, connections, depths, radius=1.5):
         tubes.append(tube)
     return tubes
 
+def fill_cylinders(vol:np.ndarray,points,connections,depths,radius=10,level = BRONCI):
+    for i, (start_i,end_i) in enumerate(connections):
+        start = points[start_i]
+        end = points[end_i]
+        depth = depths[i]
+        width_scale = max(0.1,1-0.2*depth)
+        coords = line_nd(start,end)
+        r = radius* width_scale
+        ball_struct = ball(r)
+        temp_vol = np.zeros_like(vol)
+        temp_vol[tuple(coords)] = 1
+        thick_line = binary_dilation(temp_vol,structure=ball_struct)
+        volume[thick_line] = np.maximum(volume[thick_line],level)
+        
 # --- Create Bronchial Tree -----
-MAX_DEPTH = 8
+MAX_DEPTH = 5
 SCALE_FACTOR = 10
 BRANCHES = 3
 points, conns, depths = generate_bronchial_tree(
@@ -131,12 +151,14 @@ points, conns, depths = generate_bronchial_tree(
     branches_per_node=BRANCHES
 )
 bronchi = draw_cylinders(points, conns, depths)
+# vol = fill_cylinders(volume,points,conns,depths)
 
 # Plot
 plotter = pv.Plotter()
-plotter.add_mesh(lung_mesh, color='pink', opacity=0.8)
+plotter.set_background([BODY,BODY,BODY])
+plotter.add_mesh(lung_mesh,  opacity=LUNG)
 for tube in bronchi:
-    plotter.add_mesh(tube, color='purple', opacity=0.9)
+    plotter.add_mesh(tube, opacity=BRONCI)
 plotter.add_axes()
 plotter.show(jupyter_backend='trame')
 
