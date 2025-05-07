@@ -28,6 +28,13 @@ verts, faces, _, _ = measure.marching_cubes(volume, level=0.8)
 faces_pv = np.array([[3,*faces[i].flatten()] for i in range(faces.shape[0])],dtype=np.int32).flatten()
 lung_mesh = pv.PolyData(verts, faces_pv)
 
+def load_file(name):
+    with open(name,"rb") as f:
+        return np.load(f)
+def save_file(name,array):
+    with open(name,"wb") as f:
+        return np.save(f,array)
+
 # --- Step 2: Generate bronchial tree with controlled main + primary + branching ---
 def generate_bronchial_tree(root, depth, volume=volume, angle_variation=0.5, branches_per_node=10):
     points = []
@@ -142,7 +149,7 @@ def fill_cylinders(vol:np.ndarray,points,connections,depths,radius=10,level = BR
 # --- Create Bronchial Tree -----
 MAX_DEPTH = 5
 SCALE_FACTOR = 10
-BRANCHES = 3
+BRANCHES = 7
 points, conns, depths = generate_bronchial_tree(
     root=np.array([50, 50, 0]),
     depth=MAX_DEPTH,
@@ -151,15 +158,88 @@ points, conns, depths = generate_bronchial_tree(
     branches_per_node=BRANCHES
 )
 bronchi = draw_cylinders(points, conns, depths)
+print("Drew cylinders.")
 # vol = fill_cylinders(volume,points,conns,depths)
+#%%
+# # Plot
+# plotter = pv.Plotter()
+# plotter.set_background([BODY,BODY,BODY])
+# plotter.add_mesh(lung_mesh,  opacity=LUNG)
+# for tube in bronchi:
+#     plotter.add_mesh(tube, opacity=BRONCI)
+# plotter.add_axes()
+# plotter.show(jupyter_backend='trame')
 
-# Plot
-plotter = pv.Plotter()
-plotter.set_background([BODY,BODY,BODY])
-plotter.add_mesh(lung_mesh,  opacity=LUNG)
-for tube in bronchi:
-    plotter.add_mesh(tube, opacity=BRONCI)
-plotter.add_axes()
-plotter.show(jupyter_backend='trame')
+# %%
+grid = pv.StructuredGrid()
+grid.dimensions = np.array(volume.shape) + 1  # ASTRA/VTK expects +1
+grid.origin = (0, 0, 0)
+grid.spacing = (1, 1, 1)  # Each voxel = 1x1x1
+
+
+# %%
+import numpy as np
+import pyvista as pv
+import vtk
+
+# Assume lung_mesh is a closed, watertight PyVista PolyData object
+# and volume.shape is (100, 100, 100)
+
+# Step 1: Create the VTK implicit function from the lung mesh
+lung_mesh.flip_normals()
+
+lung_vtk = lung_mesh  # Already PolyData
+implicit_function = vtk.vtkImplicitPolyDataDistance()
+implicit_function.SetInput(lung_vtk)
+
+# Step 2: Create a 3D binary array and fill it using the implicit function
+filled_volume = np.zeros(volume.shape, dtype=np.float16)
+#%%
+# Step 3: Check each voxel center (i, j, k) to see if it's inside the mesh
+import os
+from tqdm import tqdm
+if not os.path.exists("lung.npy"):
+    for i in tqdm(range(volume.shape[0])):
+        for j in range(volume.shape[1]):
+            for k in range(volume.shape[2]):
+                point = [i, j, k]
+                if implicit_function.EvaluateFunction(point) < 0:
+                    filled_volume[i, j, k] = 0.3
+    lung_coords = np.argwhere(filled_volume>0.0)
+    save_file("lung.npy",lung_coords)
+else:
+    lung_coords = load_file("lung.npy")
+print("Filled lungs.")
+#%%
+filled_bronchi = np.zeros(volume.shape, dtype=np.float16)
+if not os.path.exists("bro.npy"):
+    for tube in tqdm(bronchi):
+        xmin,xmax,ymin,ymax,zmin,zmax = tube.bounds
+        # tube.flip_normals()
+        implicit_function = vtk.vtkImplicitPolyDataDistance()
+        implicit_function.SetInput(tube)
+        for i in range(int(xmin-1),int(xmax+2)):
+            for j in range(int(ymin-1),int(ymax+2)):
+                for k in range(int(zmin-1),int(zmax+2)):
+                    point = [i, j, k]
+                    if filled_bronchi[i,j,k]>0:continue
+                    if implicit_function.EvaluateFunction(point) <= 0:
+                        filled_bronchi[i, j, k] = 1
+    bronchi_coords=np.argwhere(filled_bronchi>0.0)
+    save_file("bro.npy",bronchi_coords)
+else:
+    bronchi_coords=load_file("bro.npy")
+
+print("Filled bronchi.")
+
+# %%
+import matplotlib.pyplot as plt
+
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
+
+ax.scatter(*[[p[dim] for p in bronchi_coords] for dim in range(bronchi_coords.shape[-1])])
+# ax.scatter(*[[p[dim] for p in lung_coords] for dim in range(lung_coords.shape[-1])])
+plt.show()
 
 # %%
