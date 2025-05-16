@@ -58,12 +58,12 @@ def make_sinograms(volume,numX,numY,scale):
     sz,sa,sr = sino.shape
     s = sino.reshape(sz//scale,scale,sa,sr).mean(axis=1)
     proj_geom = make_projection("parallel3d",numX//scale,numY,spacingx,spacingy,0,2*np.pi,180,True)
-    x,y,z = volume.shape
-    new_shape = (x,y,z//scale)
-    vol_geom = astra.create_vol_geom(y,z//scale,x)   #takes rows,cols,slices
+    # x,y,z = volume.shape
+    # new_shape = (x,y,z//scale)
+    # vol_geom = astra.create_vol_geom(y,z//scale,x)   #takes rows,cols,slices
     proj_id = astra.create_projector('cuda3d',proj_geom=proj_geom,vol_geom=vol_geom)
     sino_id = astra.data3d.create('-sino',proj_geom,s)
-    empty_volume = np.zeros(shape=new_shape)
+    empty_volume = np.zeros(shape=volume.shape)
     return vol_geom,empty_volume,proj_id,sino_id,s
 #%%
 def test():
