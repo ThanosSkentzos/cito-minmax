@@ -4,19 +4,40 @@ import astra
 astra.test()
 import numpy as np
 from utils import load_file
+from scipy.ndimage import zoom
 BRONCHI_LEVEL = 1
 LUNG_LEVEL = 0.3
+FACTOR = 1
+def upscale_z(volume, factor=2, order=1):
+    if volume.ndim != 3:
+        raise ValueError("Input volume must be a 3D array (X, Y, Z)")
+    zoom_factors = (1, 1, factor)  # Only change Z axis
+    return zoom(volume, zoom_factors, order=order)
+
+def downsample_z_average(volume, factor=2):
+    if volume.ndim != 3:
+        raise ValueError("Input volume must be a 3D array (X, Y, Z)")
+    x, y, z = volume.shape
+    new_z = z // factor
+    volume = volume[:, :, :new_z * factor]  # truncate extra slices
+    volume = volume.reshape(x, y, new_z, factor)
+    return volume.mean(axis=3)
 
 def make_volume(bro_filename,lung_filename,bro_level=BRONCHI_LEVEL,lung_level=LUNG_LEVEL,shape=[100,100,100]):
     bro = load_file(bro_filename)
     lung = load_file(lung_filename)
     volume = np.zeros(shape).astype(float)
     volume[*lung.T] = lung_level            # in xyz
-    volume[*bro.T] = bro_level              # in xyz
-    volume = volume.transpose([2,1,0])      # in zyx for astra
-    return volume
+    volume[*bro.T] = bro_level              # in xyz [100,100,100]
+    #TODO downscale across xy 
+    dvolume = downsample_z_average(volume,FACTOR)   # in [100,100,50]
+    #TODO upscale
+    volume_LD = upscale_z(dvolume,FACTOR)
+    volume_LD = volume_LD.transpose([2,1,0])      # xyz -> zyx for astra
+    return volume_LD
 def make_astra_volume(volume):
-    vol = astra.create_vol_geom(*volume.shape)
+    z,y,x = volume.shape
+    vol = astra.create_vol_geom(x,y,z)
     phantom_id = astra.data3d.create('-vol',vol,volume)
     return vol,phantom_id
 def make_projection(type,num_detectors,detector_width,
@@ -41,3 +62,6 @@ if __name__=="__main__":
         plt.imshow(sino[i,:,:],cmap='gray')
         plt.pause(0.001)
 # %%
+#NEXT STEPS 
+# generate data by downscaling
+# train neural network find image2image or use MS-D like paper with 100 layers
