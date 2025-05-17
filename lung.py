@@ -212,7 +212,6 @@ import matplotlib.pyplot as plt
 
 fig = plt.figure()
 ax = fig.add_subplot(projection='3d')
-
 ax.scatter(*[[p[dim] for p in bronchi_coords] for dim in range(bronchi_coords.shape[-1])])
 # ax.scatter(*[[p[dim] for p in lung_coords] for dim in range(lung_coords.shape[-1])])
 plt.show()
