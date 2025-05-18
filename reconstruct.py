@@ -1,8 +1,8 @@
 import astra
 
 def SIRT(vol_geom, vol_data, projector_id, sino_id, iters=2000, use_gpu=True):
-        """ Simultaneous Algebraic Reconstruction Technique (SART) with
-            randomized scheme. Used from DART as the continious update step.
+        """
+        Simultaneous Iterative Reconstruction Technique (SIRT) with randomized scheme.
         """
         # create starting reconstruction
         rec_id = astra.data3d.create('-vol', vol_geom, data=vol_data)
