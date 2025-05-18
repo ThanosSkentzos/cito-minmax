@@ -22,7 +22,6 @@ ANGLE_VARIATION = 0.05
 BIG_VARIATION = 0.9
 RESOLUTION = 100
 
-
 #%% # --- Step 1: Create lung volume ---
 def generate_lungs(volume):
     x, y, z = np.ogrid[-1:1:complex(RESOLUTION), -1:1:complex(RESOLUTION), -1:1:complex(RESOLUTION)]
@@ -42,9 +41,6 @@ def generate_lungs(volume):
     faces_pv = np.array([[3, *faces[i].flatten()] for i in range(faces.shape[0])], dtype=np.int32).flatten()
     lung_mesh = pv.PolyData(verts, faces_pv)
     return lung_mesh
-
-volume = np.zeros((RESOLUTION, RESOLUTION, RESOLUTION), dtype=np.float32)
-lung_mesh = generate_lungs(volume)
 
 #%% # --- Step 2: Generate bronchial tree with controlled main + primary + branching ---
 def generate_bronchial_tree(root, volume):
@@ -131,12 +127,6 @@ def generate_bronchial_tree(root, volume):
 
     return np.array(points), connections, depths
 
-# --- Create Bronchial Tree -----
-points, conns, depths = generate_bronchial_tree(
-    root=np.array([RESOLUTION/2, RESOLUTION/2, RESOLUTION - 5]),
-    volume=volume
-)
-
 #%% # --- Step 3: Draw cylinders, clip depth >= 3 outside lungs ---
 def draw_cylinders(points, connections, depths, radius=1.5):
     tubes = []
@@ -156,40 +146,38 @@ def draw_cylinders(points, connections, depths, radius=1.5):
         tubes.append(tube)
     return tubes
 
-bronchi = draw_cylinders(points, conns, depths)
-print("Drew cylinders.")
-
-#%%
-''' Plotting '''
-plot_lung_vista(lung_mesh, bronchi, jupyter=False)
-
-#%% # Step 4: Create the VTK implicit function from the lung mesh
-# Assume lung_mesh is a closed, watertight PyVista PolyData object and volume.shape is (100, 100, 100)
-
-lung_mesh.flip_normals()
-implicit_function = vtk.vtkImplicitPolyDataDistance()
-implicit_function.SetInput(lung_mesh)
-
-#%% # Step 5: Create a 3D binary array and fill it using the implicit function
-filled_volume = np.zeros(volume.shape, dtype=np.float16)
-
-#%% # Step 6: Check each voxel center (i, j, k) to see if it's inside the mesh
+#%% # Step 4: Check each voxel center (i, j, k) to see if it's inside the Lung mesh
 if not os.path.exists("lung.npy"):
+    volume = np.zeros((RESOLUTION, RESOLUTION, RESOLUTION), dtype=np.float32)
+    lung_mesh = generate_lungs(volume)
+
+    filled_volume = np.zeros(volume.shape, dtype=np.float16)
+
+    implicit_function = vtk.vtkImplicitPolyDataDistance()
+    implicit_function.SetInput(lung_mesh)
     for i in tqdm(range(volume.shape[0])):
         for j in range(volume.shape[1]):
             for k in range(volume.shape[2]):
                 point = [i, j, k]
-                if implicit_function.EvaluateFunction(point) < 0:
-                    filled_volume[i, j, k] = 0.3
+                if implicit_function.EvaluateFunction(point) >= 0:
+                    filled_volume[i, j, k] = 1
     lung_coords = np.argwhere(filled_volume > 0.0)
     save_file("lung.npy", lung_coords)
 else:
     lung_coords = load_file("lung.npy")
 print("Filled lungs.")
 
-#%%
-filled_bronchi = np.zeros(volume.shape, dtype=np.float16)
+#%% # Step 4: Check each voxel center (i, j, k) to see if it's inside the Bronchi
 if not os.path.exists("bro.npy"):
+    # --- Create Bronchial Tree -----
+    points, conns, depths = generate_bronchial_tree(
+        root=np.array([RESOLUTION/2, RESOLUTION/2, RESOLUTION - 5]),
+        volume=volume
+    )
+    bronchi = draw_cylinders(points, conns, depths)
+    print("Drew cylinders.")
+    filled_bronchi = np.zeros(volume.shape, dtype=np.float16)
+
     for tube in tqdm(bronchi):
         xmin, xmax, ymin, ymax, zmin, zmax = tube.bounds
         # tube.flip_normals()
@@ -208,6 +196,11 @@ if not os.path.exists("bro.npy"):
 else:
     bronchi_coords = load_file("bro.npy")
 print("Filled bronchi.")
+
+#%%
+
+''' PyVista Plotting '''
+# plot_lung_vista(lung_mesh, bronchi, jupyter=False)
 
 # %%
 import matplotlib.pyplot as plt
