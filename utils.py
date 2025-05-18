@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 def load_file(name):
     with open(name,"rb") as f:
         return np.load(f)
