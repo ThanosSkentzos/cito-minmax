@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pyvista as pv
 
 
 def load_file(name):
@@ -25,3 +26,19 @@ def plot_slice(vol,axis,num, show=False):
     img = vol[num]
     plt.imshow(img,cmap='gray',vmin=vol.min(),vmax=vol.max())
     if show: plt.show()
+
+
+def plot_lung_vista(lung_mesh, bronchi, jupyter=False):
+    BODY = 0.1
+    LUNG = 0.3
+    BRONCHI = 0.7
+    plotter = pv.Plotter()
+    plotter.set_background([BODY,BODY,BODY])
+    plotter.add_mesh(lung_mesh, opacity=LUNG)
+    for tube in bronchi:
+        plotter.add_mesh(tube, opacity=BRONCHI)
+    plotter.add_axes()
+    if jupyter:
+        plotter.show(jupyter_backend='trame')
+    else:
+        plotter.show()
