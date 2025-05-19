@@ -1,110 +1,85 @@
 import os
-import socket
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-from pathlib import Path
-import matplotlib.pyplot as plt
-from pcfv import UNet, train_loop, set_normalization, plot_images, plot_images
-from torch.utils.data import DataLoader
-# from datasets import AxialNPY, CoronalNPY, SaggitalNPY
-from skimage.metrics import peak_signal_noise_ratio as psnr
-# from test_loops import test_loop_coronal_npy, test_loop_saggital_npy
-from tifffile import imsave
+from torch.utils.data import TensorDataset, DataLoader
+from pcfv import train_loop, set_normalization, plot_images
 from msd_pytorch import MSDRegressionModel
+from skimage.metrics import peak_signal_noise_ratio as psnr
+from tifffile import imwrite
+import matplotlib.pyplot as plt
+from pathlib import Path
 
+# GPU setup
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'
 device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-print('Using {} device'.format(device))
 
 saving_dir = 'L291_result'
-print(f"working dir is {saving_dir}")
+Path(saving_dir).mkdir(exist_ok=True)
 
-if not Path(saving_dir).exists():
-    print("Creating folder for saving directory")
-    Path(saving_dir).mkdir()
+# 1. Load SR4ZCT data
+data_dir = 'sr4zct_data'
+X_ax = np.load(f"{data_dir}/inputs_axial.npy")      # (200,100,100)
+Y_ax = np.load(f"{data_dir}/targets_axial.npy")
+X_co = np.load(f"{data_dir}/inputs_coronal.npy")    # (200,100,100)
+Y_co = np.load(f"{data_dir}/targets_coronal.npy")
+X_sg = np.load(f"{data_dir}/inputs_sagittal.npy")   # (200,100,100)
+Y_sg = np.load(f"{data_dir}/targets_sagittal.npy")
 
-# define the model
-model = MSDRegressionModel(1, 1, 100, 1, dilations=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
-train_batch_size = 1
-workers = 16
-epochs = 200
+# 2. Prepare training and test tensors
+X_train = np.concatenate([X_co, X_sg], axis=0)      # (400,100,100)
+Y_train = np.concatenate([Y_co, Y_sg], axis=0)
+X_train = torch.from_numpy(X_train[:, None]).float()
+Y_train = torch.from_numpy(Y_train[:, None]).float()
 
-# define the training and test dataset
-training_data = AxialNPY('recon_low_vertical.npy',
-                        'recon_low_horizontal.npy',
-                        'recon_low.npy', augmentation=False)
-train_dataloader = DataLoader(training_data, batch_size=1, shuffle=True,num_workers=workers)
+X_test  = torch.from_numpy(X_ax[:, None]).float()   # (200,1,100,100)
+Y_test  = torch.from_numpy(Y_ax[:, None]).float()
 
-test_data1 = CoronalNPY('recon_low_test.npy')
-test_data2 = SaggitalNPY('recon_low_test.npy')
+# 3. Create DataLoaders
+train_ds = TensorDataset(X_train, Y_train)
+train_loader = DataLoader(train_ds, batch_size=1, shuffle=True, num_workers=8)
 
-test_dataloader1 = DataLoader(test_data1, batch_size=1, shuffle=False,num_workers=workers//2)
-test_dataloader2 = DataLoader(test_data2, batch_size=1, shuffle=False,num_workers=workers//2)
+test_ds_ax = TensorDataset(X_test, Y_test)
+test_loader_ax = DataLoader(test_ds_ax, batch_size=1, shuffle=False, num_workers=4)
 
-# set the normalization, important for msd network
-# refer to Pelt, D.M., Sethian, J.A.: A mixed-scale dense convolutional neural network for image analysis.
-# Proceedings of the National Academy of Sciences 115(2), 254–259 (2018)
-set_normalization(model, train_dataloader)
-model = model.net
+# 4. Model, optimizer, loss
+model = MSDRegressionModel(1, 1, 100, 1, dilations=list(range(1,11)))
+set_normalization(model, train_loader)
+model = model.net.to(device)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-mse_loss = torch.nn.MSELoss()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+criterion = nn.MSELoss()
 
-model = model.to(device)
-
-training_losses = []
-validate_losses = []
-
-# intermidate results
-intermediate_folder = os.path.join(saving_dir,"sr_intermidate")
-if not Path(intermediate_folder).exists():
-    print("Creating folder for intermediate results")
-    Path(intermediate_folder).mkdir()
-
-# image to trace the training process
-inter_x, inter_y = training_data[10]
-inter_x_cuda = torch.from_numpy(np.expand_dims(inter_x, (0))).float().to(device)
+# 5. (Optional) Pick one sample to visualize
+inter_x = X_train[10].numpy()[0]
+inter_y = Y_train[10].numpy()[0]
+inter_x_cuda = torch.from_numpy(inter_x[None, None]).to(device)
 vmin, vmax = inter_y.min(), inter_y.max()
 
-# test image
-inter_x_test = test_data1[len(test_data1)//2]
-imsave(os.path.join(saving_dir,'test_org.tif'), inter_x_test.astype(np.float32)[0])
-inter_x_test_cuda = torch.from_numpy(np.expand_dims(inter_x_test, (0))).float().to(device)
+# 6. Training Loop
+for epoch in range(1, 201):
+    loss = train_loop(train_loader, model, optimizer, criterion, device)
+    print(f"Epoch {epoch:03d} Loss {loss:.4f}")
+    if epoch == 1 or epoch % 10 == 0:
+        pred = model(inter_x_cuda).cpu().detach().numpy()[0,0]
+        fig = plot_images(inter_x, pred, inter_y,
+                            style=plt.gray(), t1="input", t2="pred", t3="gt",
+                            vmin=vmin, vmax=vmax, show_image=False)
+        fig.savefig(f"{saving_dir}/inter_epoch_{epoch}.png")
+    torch.save(model.state_dict(), f"{saving_dir}/sr_epoch_{epoch}.pt")
 
-for t in range(epochs):
-    print(f"Epoch {t + 1}\n-------------------------------")
-    loss2 = train_loop(train_dataloader, model, optimizer, mse_loss, device)
-    training_losses.append(loss2)
-    if t==0 or (t+1) % 5 == 0:
-        inter_prey_cuda = model(inter_x_cuda)
-        inter_prey = inter_prey_cuda.detach().cpu().numpy()[0]
-        fig = plot_images(inter_x[0], inter_prey[0], inter_y[0],
-                            style=plt.gray(), t1="original", t2="intermediate result",
-                            t3="ground truth", subposition=(1, 3), vmin=vmin, vmax=vmax, range=vmax - vmin,
-                            show_image=False,
-                            x1=f"psnr:{psnr(inter_x[0], inter_y[0], data_range=vmax - vmin):>.2f}dB",
-                            x2=f"{psnr(inter_prey, inter_y, data_range=vmax - vmin):>.2f}dB",
-                            width = 455.24408 / 72, height = 455.24408 / 72 /3
-                            )
-        fig.savefig(os.path.join(intermediate_folder, f"intermediate_epoch_{t + 1}.png"))
+# 7. Evaluate on axial (unseen) slices
+psnrs = []
+for xb, yb in test_loader_ax:
+    xb, yb = xb.to(device), yb.to(device)
+    with torch.no_grad():
+        out = model(xb)
+    psnrs.append(psnr(out.cpu().numpy().squeeze(),
+                        yb.cpu().numpy().squeeze(),
+                        data_range=vmax-vmin))
 
-        inter_prey_test_cuda = model(inter_x_test_cuda)
-        inter_prey_test = inter_prey_test_cuda.detach().cpu().numpy()[0]
-        imsave(os.path.join(intermediate_folder, f"test_epoch_{t + 1}.tif"),inter_prey_test)
+# Save one example prediction
+pred_ax = model(X_test[0:1].to(device)).cpu().numpy()[0,0]
+imwrite(f"{saving_dir}/axial_pred.tif", pred_ax)
 
-    torch.save(model.state_dict(), os.path.join(saving_dir,"sr.pt"))
-
-# load trained model
-# model.load_state_dict(torch.load(os.path.join(saving_dir,"sr.pt")))
-
-fig = plt.figure(frameon=True)
-plt.plot(training_losses, '-')
-plt.xlabel('epoch')
-plt.ylabel('mse loss')
-plt.legend(['Train'])
-plt.title('Train loss')
-fig.savefig(os.path.join(saving_dir, "train_loss.png"))
-
-test_loop_coronal_npy(test_dataloader1, model, mse_loss, os.path.join(saving_dir,'output_cor.npy'), device, False)
-test_loop_saggital_npy(test_dataloader2, model, mse_loss, os.path.join(saving_dir,'output_sag.npy'), device, False)
+print(f"Mean PSNR on axial test: {np.mean(psnrs):.2f} dB")
