@@ -5,7 +5,7 @@ astra.test()
 
 import os
 import numpy as np
-from utils import load_file, save_file, plot_vol, plot_slice
+from utils import load_file, save_file, plot_vol, plot_slice, play_slices
 from scipy.ndimage import zoom
 from reconstruct import SIRT
 import matplotlib.pyplot as plt
@@ -80,7 +80,7 @@ def make_sinograms(volume, numX, numY, scale):
 
     return vol_geom, empty_volume, proj_id, sino_id
 
-#%%
+#%% # Test
 def test():
     volume = make_volume("bro.npy", "lung.npy")
     for scale in [1, 2, 4, 5, 10]:
@@ -97,19 +97,7 @@ def test():
         # plt.pause(0.1)
     # plt.show()
 
-def play_slices():
-    r = "reconstruct.npy"
-    vol = load_file(r)
-    print(vol.shape)
-
-    # plot_vol(vol,0.1)
-    for ax in range(3):
-        plt.figure()
-        for i in range(0,vol.shape[ax],1):
-            plot_slice(vol,ax,i)
-            plt.pause(0.01)
-        plt.close()
-
+#%% # MAIN
 def main():
     r = "reconstruct.npy"
     if not os.path.exists(r):
@@ -121,11 +109,10 @@ def main():
     else:
         vol = load_file(r)
         print(vol.shape)
-
+    play_slices(r)
 
 if __name__ == "__main__":
     main()
-    play_slices()
 
 # %%
 #NEXT STEPS 

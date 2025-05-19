@@ -24,9 +24,20 @@ def plot_slice(vol, axis, num, show=False):
     axes = [axis] + axes # [1,0,2]
     vol = vol.transpose(axes)
     img = vol[num]
-    plt.imshow(img,cmap='gray',vmin=vol.min(),vmax=vol.max())
+    plt.imshow(img, cmap='gray', vmin=vol.min(), vmax=vol.max(), origin='lower')
     if show: plt.show()
 
+def play_slices(r):
+    vol = load_file(r)
+    print(vol.shape)
+
+    # plot_vol(vol,0.1)
+    for ax in range(3):
+        plt.figure()
+        for i in range(0,vol.shape[ax],1):
+            plot_slice(vol,ax,i)
+            plt.pause(0.01)
+        plt.close()
 
 def plot_lung_vista(lung_mesh, bronchi, jupyter=False):
     BODY = 0.1

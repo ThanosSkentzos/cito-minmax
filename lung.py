@@ -13,12 +13,12 @@ np.random.seed(42)
 MAX_DEPTH = 5
 SCALE_FACTOR = 15
 THORAX = 30
-INITIAL_BRANCH_SIZE = 4
+INITIAL_BRANCH_SIZE = 6
 
 FIBRE = True
 N_AXIS = 0     # [0, 1, 2]
 
-ANGLE_VARIATION = 0.05
+ANGLE_VARIATION = 0.1
 BIG_VARIATION = 0.9
 RESOLUTION = 100
 
@@ -147,12 +147,11 @@ def draw_cylinders(points, connections, depths, radius=1.5):
     return tubes
 
 #%% # Step 4: Check each voxel center (i, j, k) to see if it's inside the Lung mesh
+volume = np.zeros((RESOLUTION, RESOLUTION, RESOLUTION), dtype=np.float32)
 if not os.path.exists("lung.npy"):
-    volume = np.zeros((RESOLUTION, RESOLUTION, RESOLUTION), dtype=np.float32)
     lung_mesh = generate_lungs(volume)
 
     filled_volume = np.zeros(volume.shape, dtype=np.float16)
-
     implicit_function = vtk.vtkImplicitPolyDataDistance()
     implicit_function.SetInput(lung_mesh)
     for i in tqdm(range(volume.shape[0])):
