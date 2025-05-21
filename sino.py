@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 BRONCHI_LEVEL = 1
 LUNG_LEVEL = 0.3
 FACTOR = 4
+RESOLUTION = 128
 
 def upscale_z(volume, factor=2, order=1):
     if volume.ndim != 3:
@@ -29,13 +30,13 @@ def downsample_z_average(volume, factor=2):
     volume = volume.reshape(x, y, new_z, factor)
     return volume.mean(axis=3)
 
-def make_volume(bro_filename,lung_filename,bro_level=BRONCHI_LEVEL,lung_level=LUNG_LEVEL,shape=[100,100,100]):
+def make_volume(bro_filename,lung_filename,bro_level=BRONCHI_LEVEL,lung_level=LUNG_LEVEL,shape=[RESOLUTION,RESOLUTION,RESOLUTION]):
     bro = load_file(bro_filename)
     lung = load_file(lung_filename)
     volume = np.zeros(shape).astype(float)
     volume[*lung.T] = lung_level            # in xyz
-    volume[*bro.T] = bro_level              # in xyz [100,100,100]
-    # volume = downsample_z_average(volume,FACTOR)   # in [100,100,50]
+    volume[*bro.T] = bro_level              # in xyz [RESOLUTION,RESOLUTION,RESOLUTION]
+    # volume = downsample_z_average(volume,FACTOR)   # in [RESOLUTION,RESOLUTION,50]
     # volume_LD = upscale_z(volume,FACTOR)
     return volume
 
@@ -84,7 +85,7 @@ def make_sinograms(volume, numX, numY, scale):
 def test():
     volume = make_volume("bro.npy", "lung.npy")
     for scale in [1, 2, 4, 5, 10]:
-        sino = make_sinograms(volume, 100, 100, scale)
+        sino = make_sinograms(volume, RESOLUTION, RESOLUTION, scale)
         plt.figure()
         print(sino.shape)
         angles, z, r = sino.shape
@@ -102,7 +103,7 @@ def main():
     r = "reconstruct.npy"
     if not os.path.exists(r):
         volume = make_volume("bro.npy","lung.npy")
-        vol_geom, empty_volume, proj_id, sino_id = make_sinograms(volume, 100, 100, scale=1)
+        vol_geom, empty_volume, proj_id, sino_id = make_sinograms(volume, RESOLUTION, RESOLUTION, scale=1)
         vol_id, vol = SIRT(vol_geom, empty_volume, proj_id, sino_id)
         print("Done.")
         save_file(r,vol)
@@ -117,5 +118,5 @@ if __name__ == "__main__":
 # %%
 #NEXT STEPS 
 # generate data by downscaling
-# train neural network find image2image or use MS-D like paper with 100 layers
+# train neural network find image2image or use MS-D like paper with  layers
 # %%

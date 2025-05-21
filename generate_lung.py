@@ -10,17 +10,17 @@ from tqdm import tqdm
 
 np.random.seed(42)
 
-MAX_DEPTH = 5
+MAX_DEPTH = 6
 SCALE_FACTOR = 15
 THORAX = 30
-INITIAL_BRANCH_SIZE = 6
+INITIAL_BRANCH_SIZE = 5
 
-FIBRE = True
+FIBRE = False
 N_AXIS = 0     # [0, 1, 2]
 
-ANGLE_VARIATION = 0.1
+ANGLE_VARIATION = 0.5
 BIG_VARIATION = 0.9
-RESOLUTION = 100
+RESOLUTION = 128
 
 #%% # --- Step 1: Create lung volume ---
 def generate_lungs(volume):
@@ -128,7 +128,7 @@ def generate_bronchial_tree(root, volume):
     return np.array(points), connections, depths
 
 #%% # --- Step 3: Draw cylinders, clip depth >= 3 outside lungs ---
-def draw_cylinders(points, connections, depths, radius=1.5):
+def draw_cylinders(points, connections, depths, radius=4):
     tubes = []
 
     for i, (start_i, end_i) in enumerate(connections):
@@ -201,13 +201,16 @@ print("Filled bronchi.")
 ''' PyVista Plotting '''
 # plot_lung_vista(lung_mesh, bronchi, jupyter=False)
 
-# %%
-import matplotlib.pyplot as plt
+# # %%
+# # import matplotlib
+# # matplotlib.use("TkAgg")
+# import matplotlib.pyplot as plt
 
-fig = plt.figure()
-ax = fig.add_subplot(projection='3d')
-ax.scatter(*[[p[dim] for p in bronchi_coords] for dim in range(bronchi_coords.shape[-1])])
-# ax.scatter(*[[p[dim] for p in lung_coords] for dim in range(lung_coords.shape[-1])])
-plt.show()
+# fig = plt.figure()
+
+# ax = fig.add_subplot(projection='3d')
+# ax.scatter(*[[p[dim] for p in bronchi_coords] for dim in range(bronchi_coords.shape[-1])])
+# # ax.scatter(*[[p[dim] for p in lung_coords] for dim in range(lung_coords.shape[-1])])
+# plt.show()
 
 # %%

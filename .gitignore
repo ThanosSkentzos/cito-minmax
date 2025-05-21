@@ -11,3 +11,8 @@ wheels/
 
 # UV
 uv.lock
+
+L291_result/
+msd_pytorch/
+*.out
+requirements.txt
