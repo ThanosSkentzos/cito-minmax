@@ -20,6 +20,7 @@ N_AXIS = 0     # [0, 1, 2]
 
 ANGLE_VARIATION = 0.5
 BIG_VARIATION = 0.9
+RADIUS = 2
 RESOLUTION = 128
 
 #%% # --- Step 1: Create lung volume ---
@@ -128,10 +129,10 @@ def generate_bronchial_tree(root, volume):
     return np.array(points), connections, depths
 
 #%% # --- Step 3: Draw cylinders, clip depth >= 3 outside lungs ---
-def draw_cylinders(points, connections, depths, radius=4):
+def draw_cylinders(points, connections, depths, radius=RADIUS):
     tubes = []
 
-    for i, (start_i, end_i) in enumerate(connections):
+    for i, (start_i, end_i) in enumerate(tqdm(connections, "Drawing Cylinders")):
         start = points[start_i]
         end = points[end_i]
         depth = depths[i]
