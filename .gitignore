@@ -16,3 +16,4 @@ L291_result/
 msd_pytorch/
 *.out
 requirements.txt
+*.npy

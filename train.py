@@ -1,7 +1,6 @@
 import os
 import numpy as np
-import torch
-import torch.nn as nn
+
 from torch.utils.data import TensorDataset, DataLoader
 from pcfv import train_loop, set_normalization, plot_images
 # from msd_pytorch import MSDRegressionModel
@@ -10,9 +9,6 @@ from tifffile import imwrite
 import matplotlib.pyplot as plt
 from pathlib import Path
 from tqdm import tqdm
-
-import torch
-import torch.nn as nn
 
 import torch
 import torch.nn as nn
@@ -26,7 +22,7 @@ class UNet2D(nn.Module):
         for f in features:
             self.downs.append(nn.Sequential(
                 nn.Conv2d(prev_ch, f, 3, padding=1), nn.ReLU(inplace=True),
-                nn.Conv2d(f,        f, 3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(f, f, 3, padding=1), nn.ReLU(inplace=True),
             ))
             prev_ch = f
         self.pool = nn.MaxPool2d(2)
@@ -44,7 +40,7 @@ class UNet2D(nn.Module):
         for skip_ch in reversed(features):
             self.ups.append(nn.Sequential(
                 nn.Conv2d(curr_ch + skip_ch, skip_ch, 3, padding=1), nn.ReLU(inplace=True),
-                nn.Conv2d(skip_ch,           skip_ch, 3, padding=1), nn.ReLU(inplace=True),
+                nn.Conv2d(skip_ch, skip_ch, 3, padding=1), nn.ReLU(inplace=True),
             ))
             curr_ch = skip_ch
 
@@ -77,20 +73,20 @@ Path(saving_dir).mkdir(exist_ok=True)
 
 # 1. Load SR4ZCT data
 data_dir = 'sr4zct_data'
-X_ax = np.load(f"{data_dir}/inputs_axial.npy")      # (200,100,100)
+X_ax = np.load(f"{data_dir}/inputs_axial.npy")
 Y_ax = np.load(f"{data_dir}/targets_axial.npy")
-X_co = np.load(f"{data_dir}/inputs_coronal.npy")    # (200,100,100)
+X_co = np.load(f"{data_dir}/inputs_coronal.npy")
 Y_co = np.load(f"{data_dir}/targets_coronal.npy")
-X_sg = np.load(f"{data_dir}/inputs_sagittal.npy")   # (200,100,100)
+X_sg = np.load(f"{data_dir}/inputs_sagittal.npy")
 Y_sg = np.load(f"{data_dir}/targets_sagittal.npy")
 
 # 2. Prepare training and test tensors
-X_train = np.concatenate([X_co, X_sg], axis=0)      # (400,100,100)
+X_train = np.concatenate([X_co, X_sg], axis=0)
 Y_train = np.concatenate([Y_co, Y_sg], axis=0)
 X_train = torch.from_numpy(X_train[:, None]).float()
 Y_train = torch.from_numpy(Y_train[:, None]).float()
 
-X_test  = torch.from_numpy(X_ax[:, None]).float()   # (200,1,100,100)
+X_test  = torch.from_numpy(X_ax[:, None]).float()
 Y_test  = torch.from_numpy(Y_ax[:, None]).float()
 
 # 3. Create DataLoaders
@@ -111,7 +107,7 @@ inter_y = Y_train[10].numpy()[0]
 inter_x_cuda = torch.from_numpy(inter_x[None, None]).to(device)
 vmin, vmax = inter_y.min(), inter_y.max()
 
-for epoch in tqdm(range(1, 21)):
+for epoch in tqdm(range(1, 51)):
     model.train()
     running_loss = 0.0
     for xb, yb in train_loader:

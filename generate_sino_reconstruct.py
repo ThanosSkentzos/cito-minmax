@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 BRONCHI_LEVEL = 1
 LUNG_LEVEL = 0.3
 FACTOR = 4
-RESOLUTION = 128
+RESOLUTION = 512
 
 def upscale_z(volume, factor=2, order=1):
     if volume.ndim != 3:

@@ -11,8 +11,8 @@ from tqdm import tqdm
 np.random.seed(42)
 
 MAX_DEPTH = 6
-SCALE_FACTOR = 15
-THORAX = 30
+SCALE_FACTOR = 15 * 5
+THORAX = 30 * 5
 INITIAL_BRANCH_SIZE = 5
 
 FIBRE = False
@@ -21,7 +21,7 @@ N_AXIS = 0     # [0, 1, 2]
 ANGLE_VARIATION = 0.5
 BIG_VARIATION = 0.9
 RADIUS = 2
-RESOLUTION = 128
+RESOLUTION = 512
 
 #%% # --- Step 1: Create lung volume ---
 def generate_lungs(volume):
@@ -129,7 +129,7 @@ def generate_bronchial_tree(root, volume):
     return np.array(points), connections, depths
 
 #%% # --- Step 3: Draw cylinders, clip depth >= 3 outside lungs ---
-def draw_cylinders(points, connections, depths, radius=RADIUS):
+def draw_cylinders(points, connections, depths, radius=RADIUS*5):
     tubes = []
 
     for i, (start_i, end_i) in enumerate(tqdm(connections, "Drawing Cylinders")):
