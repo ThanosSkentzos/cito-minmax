@@ -11,12 +11,24 @@ def save_file(name, array):
     with open(name,"wb") as f:
         return np.save(f,array)
 
-def plot_vol(vol, limit=0.1):
-    coords = np.argwhere(vol>limit)[::100]
+def plot_vol(vol, limit=0.1,stride=1000):
+    coords = np.argwhere(vol>limit)[::stride]
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
     ax.scatter(*[[p[dim] for p in coords] for dim in range(coords.shape[-1])])
     plt.show()
+
+def plot_bronchi(bro,stride=1000):
+    coords = bro[::stride]
+    fig = plt.figure()
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(*[[p[dim] for p in coords] for dim in range(coords.shape[-1])])
+
+def plot_sino(sino,stride=4):
+    sino = sino.transpose([1,0,2])
+    for angle in range(0,sino.shape[0],stride):
+        plt.imshow(sino[angle],cmap='gray',origin='lower')
+        plt.pause(0.001)
 
 def plot_slice(vol, axis, num, show=False):
     axes = [0,1,2]
@@ -34,9 +46,9 @@ def play_slices(r):
     # plot_vol(vol,0.1)
     for ax in range(3):
         plt.figure()
-        for i in range(0,vol.shape[ax],1):
+        for i in range(0,vol.shape[ax],10):
             plot_slice(vol,ax,i)
-            plt.pause(0.01)
+            plt.pause(0.001)
         plt.close()
 
 def plot_lung_vista(lung_mesh, bronchi, jupyter=False):
