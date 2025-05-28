@@ -5,7 +5,7 @@ astra.test()
 
 import os
 import numpy as np
-from utils import load_file, save_file, plot_vol, plot_slice, play_slices
+from utils import load_file, save_file, plot_vol, plot_slice, play_slices,plot_sino
 from scipy.ndimage import zoom
 from reconstruct import SIRT
 import matplotlib.pyplot as plt
@@ -65,7 +65,7 @@ def make_sinograms(volume, numX, numY, scale):
     proj_id = astra.create_projector('cuda3d', proj_geom=proj_geom, vol_geom=vol_geom)
     sino_id, sino = astra.creators.create_sino3d_gpu(phantom_id, proj_geom, vol_geom)
 
-    # sino = sino.transpose([1,0,2])
+    # plot_sino(sino)
 
     sz, sa, sr = sino.shape
     s = sino.reshape(sz//scale, scale, sa, sr).mean(axis=1)
@@ -100,9 +100,9 @@ def test():
 
 #%% # MAIN
 def main():
-    r = "reconstruct.npy"
+    r = "phantom/reconstruct.npy"
     if not os.path.exists(r):
-        volume = make_volume("bro.npy","lung.npy")
+        volume = make_volume("phantom/bro.npy","phantom/lung.npy")
         vol_geom, empty_volume, proj_id, sino_id = make_sinograms(volume, RESOLUTION, RESOLUTION, scale=1)
         vol_id, vol = SIRT(vol_geom, empty_volume, proj_id, sino_id)
         print("Done.")
@@ -110,7 +110,8 @@ def main():
     else:
         vol = load_file(r)
         print(vol.shape)
-    play_slices(r)
+    # play_slices(r)
+    # plot_vol(vol)
 
 if __name__ == "__main__":
     main()
