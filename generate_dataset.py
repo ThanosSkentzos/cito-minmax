@@ -7,7 +7,7 @@ import os
 os.makedirs("sr4zct_data", exist_ok=True)
 
 # Load 3D phantom volume
-V = np.load("reconstructions/reconstruct.npy")  # shape (100,100,100), order (z, y, x)
+V = np.load("phantom/reconstruct.npy")  # shape (100,100,100), order (z, y, x)
 
 # Define down/up-sampling ratios
 down_ratio = 1 / 4  # simulate 4mm slices over 1mm voxels
@@ -33,6 +33,9 @@ def make_pairs(volume, plane):
         - 'sagittal': slices along Y (slice = volume[:, y, :])
     Returns inputs (2*N, H, W) and targets (2*N, H, W)
     """
+
+    volume = 255/volume.max()*volume
+    volume = volume.round().astype(np.uint8)
     if plane == 'axial':
         slices = [volume[z, :, :] for z in range(volume.shape[0])]
     elif plane == 'coronal':
@@ -42,7 +45,8 @@ def make_pairs(volume, plane):
     else:
         raise ValueError("Unknown plane")
 
-    hr = np.stack(slices, axis=0)  # (N, H, W)
+    nonzero = [s for s in slices if s.mean()>0]
+    hr = np.stack(nonzero, axis=0)  # (N, H, W)
     
     # degrade along vertical (axis=0) then horizontal (axis=1)
     degV = np.stack([degrade(img, axis=0, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
