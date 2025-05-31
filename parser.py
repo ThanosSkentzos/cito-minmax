@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import glob
 
-files = glob.glob("nohup_train*.out")
+files = glob.glob("logs/nohup_train*.out")
 
 df_all = pd.DataFrame(columns=["Name", "Epoch", "Train_Loss", "IN_PSNR", "OUT_PSNR", "IN_SSIM", "OUT_SSIM", "PSNR_Diff"])
 df_best = pd.DataFrame(columns=["Name", "Epoch", "Train_Loss", "IN_PSNR", "OUT_PSNR", "IN_SSIM", "OUT_SSIM", "PSNR_Diff"])
@@ -37,7 +37,7 @@ for each in files:
             ssim_out = float(ssim_out_pattern.search(lines[i+4]).group(1))
             
             records.append({
-                "Name": each.replace("nohup_train_", "").replace(".out", ""),
+                "Name": each.replace("logs/nohup_train_", "").replace(".out", ""),
                 "Epoch": epoch,
                 "Train_Loss": train_loss,
                 "IN_PSNR": psnr_in,
@@ -102,11 +102,11 @@ cols = df_all.columns.tolist()
 cols.insert(0, cols.pop(cols.index('Readable')))
 df_all = df_all[cols]
 df_all = df_all.drop(columns=['Name'])
-df_all.to_csv("all_epochs.csv", index=False)
+df_all.to_csv("results/all_epochs.csv", index=False)
 
 # %%
 df_sorted = df_best.sort_values(by="PSNR_Diff", ascending=False)
-df_sorted.to_csv("best_epochs.csv", index=False)
+df_sorted.to_csv("results/best_epochs.csv", index=False)
 df_sorted
 
 #%%
@@ -114,7 +114,7 @@ print(df_sorted)
 
 # %%
 df_sorted = df_last.sort_values(by="PSNR_Diff", ascending=False)
-df_sorted.to_csv("last_epochs.csv", index=False)
+df_sorted.to_csv("results/last_epochs.csv", index=False)
 df_sorted
 
 # %%

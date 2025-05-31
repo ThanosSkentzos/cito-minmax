@@ -104,8 +104,8 @@ print("RADIUS =", RADIUS)
 print("RESOLUTION =", RESOLUTION)
 print("NORM =", NORM)
 
-data_dir = f"sr4zct_data_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}"
-saving_dir = f'result_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}_{NORM}'
+data_dir = f"sr4zct_data/sr4zct_data_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}"
+saving_dir = f'results/result_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}_{NORM}'
 Path(saving_dir).mkdir(exist_ok=True)
 
 X_ax = np.load(f"{data_dir}/inputs_axial.npy")

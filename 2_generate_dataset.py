@@ -79,7 +79,7 @@ for f in files:
         fibre = fibre_str.lower() == 'true'  # Convert 'True'/'False' to boolean
         n_axis = int(n_axis)
 
-        FOLDER = f"sr4zct_data_{resolution}_{radius}_{fibre}_{n_axis}"
+        FOLDER = f"sr4zct_data/sr4zct_data_{resolution}_{radius}_{fibre}_{n_axis}"
         os.makedirs(FOLDER, exist_ok=True)
 
         # Load 3D phantom volume
