@@ -47,8 +47,7 @@ def make_pairs(volume, plane):
     else:
         raise ValueError("Unknown plane")
 
-    nonzero = [s for s in slices if s.mean()>0.1]
-    print(len(slices))
+    nonzero = [s for s in slices if s.mean()>0.1 or s.max()>50]
     hr = np.stack(nonzero, axis=0)  # (N, H, W)
     
     # degrade along vertical (axis=0) then horizontal (axis=1)
