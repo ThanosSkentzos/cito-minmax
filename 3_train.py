@@ -104,9 +104,10 @@ print("RADIUS =", RADIUS)
 print("RESOLUTION =", RESOLUTION)
 print("NORM =", NORM)
 
-data_dir = f"sr4zct_data/sr4zct_data_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}"
-saving_dir = f'results/result_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}_{NORM}'
-Path(saving_dir).mkdir(exist_ok=True)
+base_dir = os.path.dirname(os.path.abspath(__file__))  # directory containing this script
+data_dir = os.path.join(base_dir, "sr4zct_data", f"sr4zct_data_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}")
+saving_dir = os.path.join(base_dir, "results", f'result_{RESOLUTION}_{RADIUS}_{FIBRE}_{N_AXIS}_{NORM}')
+Path(saving_dir).mkdir(parents=True, exist_ok=True)
 
 X_ax = np.load(f"{data_dir}/inputs_axial.npy")
 Y_ax = np.load(f"{data_dir}/targets_axial.npy")
@@ -116,13 +117,13 @@ X_sg = np.load(f"{data_dir}/inputs_sagittal.npy")
 Y_sg = np.load(f"{data_dir}/targets_sagittal.npy")
 
 # 2. Prepare training and test tensors
-X_train = np.concatenate([X_ax, X_sg], axis=0)
-Y_train = np.concatenate([Y_ax, Y_sg], axis=0)
-X_train = torch.from_numpy(X_train[:, None]).float() / NORM
-Y_train = torch.from_numpy(Y_train[:, None]).float() / NORM
+X_train = torch.from_numpy(X_ax[:, None]).float() / NORM
+Y_train = torch.from_numpy(Y_ax[:, None]).float() / NORM
 
-X_test  = torch.from_numpy(X_co[:, None]).float() / NORM
-Y_test  = torch.from_numpy(Y_co[:, None]).float() / NORM
+X_test = np.concatenate([X_co, X_sg], axis=0)
+Y_test = np.concatenate([Y_co, Y_sg], axis=0)
+X_test = torch.from_numpy(X_test[:, None]).float() / NORM
+Y_test = torch.from_numpy(Y_test[:, None]).float() / NORM
 
 # 3. Create DataLoaders
 train_ds = TensorDataset(X_train, Y_train)
@@ -164,7 +165,7 @@ for epoch in tqdm(range(1, 51)):
     if epoch == 1 or epoch % 1 == 0:
         model.eval()
         with torch.no_grad():
-            rng = np.random.default_rng(32)
+            rng = np.random.default_rng(22)
             images = rng.integers(0, len(test_loader_ax), size=5)
             n_images = len(images)
 

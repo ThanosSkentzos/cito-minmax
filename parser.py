@@ -3,7 +3,7 @@ import pandas as pd
 import re
 import glob
 
-files = glob.glob("logs/nohup_train*.out")
+files = glob.glob("logs2/nohup_train*.out")
 
 df_all = pd.DataFrame(columns=["Name", "Epoch", "Train_Loss", "IN_PSNR", "OUT_PSNR", "IN_SSIM", "OUT_SSIM", "PSNR_Diff"])
 df_best = pd.DataFrame(columns=["Name", "Epoch", "Train_Loss", "IN_PSNR", "OUT_PSNR", "IN_SSIM", "OUT_SSIM", "PSNR_Diff"])
@@ -37,7 +37,7 @@ for each in files:
             ssim_out = float(ssim_out_pattern.search(lines[i+4]).group(1))
             
             records.append({
-                "Name": each.replace("logs/nohup_train_", "").replace(".out", ""),
+                "Name": each.replace("logs2/nohup_train_", "").replace(".out", ""),
                 "Epoch": epoch,
                 "Train_Loss": train_loss,
                 "IN_PSNR": psnr_in,
@@ -79,6 +79,7 @@ def parse_name(name):
 parsed = df_best["Name"].apply(parse_name)
 parsed_df = pd.DataFrame(parsed.tolist())
 
+#%%
 df_best = pd.concat([df_best, parsed_df], axis=1)
 cols = df_best.columns.tolist()
 cols.insert(0, cols.pop(cols.index('Readable')))

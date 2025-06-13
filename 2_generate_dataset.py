@@ -12,8 +12,8 @@ pattern = r"reconstruct_(\d+)_(\d+)_(True|False)_(\d+)\.npy"
 files = glob.glob(os.path.join("reconstructions", "reconstruct_*.npy"))
 
 # Define down/up-sampling ratios
-down_ratio = 1 / 4  # simulate 4mm slices over 1mm voxels
-up_ratio = 4        # restore to original
+down_ratio = 1 / 2  # simulate 4mm slices over 1mm voxels
+up_ratio = 2        # restore to original
 
 def degrade(img2d, axis, r_down, r_up):
     """
@@ -27,7 +27,7 @@ def degrade(img2d, axis, r_down, r_up):
     high = zoom(low, zoom=zoom_factors, order=1)
     return high
 
-def make_pairs(volume, plane):
+def make_pairs(volume, plane, training=True):
     """
     Generate input-target pairs for a given plane:
         - 'axial': slices along Z  (slice = volume[z, :, :])
@@ -50,16 +50,29 @@ def make_pairs(volume, plane):
     nonzero = [s for s in slices if s.mean()>0.1 or s.max()>50]
     hr = np.stack(nonzero, axis=0)  # (N, H, W)
     
-    # degrade along vertical (axis=0) then horizontal (axis=1)
-    degV = np.stack([degrade(img, axis=0, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
-    degH = np.stack([degrade(img, axis=1, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
+    if training:
+        # For training (axial plane), degrade along both axes and augment
+        # degrade along vertical (axis=0) then horizontal (axis=1)
+        degV = np.stack([degrade(img, axis=0, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
+        degH = np.stack([degrade(img, axis=1, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
 
-    # rotate horizontal-degraded and hr so input blur is always vertical
-    degH_rot = np.rot90(degH, k=1, axes=(1, 2))
-    hr_rot = np.rot90(hr, k=1, axes=(1, 2))
+        # rotate horizontal-degraded and hr so input blur is always vertical
+        degH_rot = np.rot90(degH, k=1, axes=(1, 2))
+        hr_rot = np.rot90(hr, k=1, axes=(1, 2))
 
-    inputs = np.concatenate([degV, degH_rot], axis=0)
-    targets = np.concatenate([hr, hr_rot], axis=0)
+        inputs = np.concatenate([degV, degH_rot], axis=0)
+        targets = np.concatenate([hr, hr_rot], axis=0)
+
+        # Shuffle only training data
+        indices = np.random.permutation(inputs.shape[0])
+        inputs = inputs[indices]
+        targets = targets[indices]
+
+    else:
+        # For testing (coronal/sagittal), only degrade vertically (axis=0)
+        # This simulates the low through-plane resolution
+        inputs = np.stack([degrade(img, axis=0, r_down=down_ratio, r_up=up_ratio) for img in hr], axis=0)
+        targets = hr # The target is just the original high-res slice
 
     # Shuffle
     indices = np.random.permutation(inputs.shape[0])
@@ -79,14 +92,15 @@ for f in files:
         fibre = fibre_str.lower() == 'true'  # Convert 'True'/'False' to boolean
         n_axis = int(n_axis)
 
-        FOLDER = f"sr4zct_data/sr4zct_data_{resolution}_{radius}_{fibre}_{n_axis}"
+        FOLDER = f"sr4zct_data_2/sr4zct_data_{resolution}_{radius}_{fibre}_{n_axis}"
         os.makedirs(FOLDER, exist_ok=True)
 
         # Load 3D phantom volume
         V = np.load(f"reconstructions/reconstruct_{resolution}_{radius}_{fibre}_{n_axis}.npy")  # shape (100,100,100), order (z, y, x)
         # Generate and save pairs for each plane
         for plane in ['axial', 'coronal', 'sagittal']:
-            inp, tgt = make_pairs(V, plane)
+            is_training_plane = (plane == 'axial')
+            inp, tgt = make_pairs(V, plane, training=is_training_plane)
             np.save(f"{FOLDER}/inputs_{plane}.npy", inp)
             np.save(f"{FOLDER}/targets_{plane}.npy", tgt)
             print(f"{plane.capitalize()}: inputs shape {inp.shape}, targets shape {tgt.shape}")
@@ -97,3 +111,20 @@ for f in files:
             print(f" - {FOLDER}/{fn}")
 
 # %%
+
+'''
+ssh -K u0065006 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 2 -f false -a 0 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_2_f_0_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 2 -f false -a 0 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_2_f_0_1.out 2>&1 &"
+ssh -K u0065009 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 0 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_0_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 0 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_0_1.out 2>&1 &"
+ssh -K u0065011 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 1 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_1_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 1 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_1_1.out 2>&1 &"
+ssh -K u0065015 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 2 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_2_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f false -a 2 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_f_2_1.out 2>&1 &"
+ssh -K u0065017 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 0 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_0_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 0 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_0_1.out 2>&1 &"
+ssh -K u0065018 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 1 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_1_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 1 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_1_1.out 2>&1 &"
+ssh -K u0065021 "nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 2 -n 255 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_2_255.out 2>&1 & \
+                 nohup /vol/home/s3777103/Documents/workspace/Sem2/CIAT/.venv/bin/python -u /vol/home/s3777103/Documents/workspace/Sem2/CIAT/3_train.py -s 512 -r 5 -f true -a 2 -n 1 > /vol/home/s3777103/Documents/workspace/Sem2/CIAT/logs2/nohup_train_512_5_t_2_1.out 2>&1 &"
+'''
