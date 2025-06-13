@@ -17,4 +17,5 @@ msd_pytorch/
 *.out
 reconstructions/
 sr4zct_data*/
-*.ptphantoms/lung_512.npy
+*.pt
+phantoms/lung_512.npy
