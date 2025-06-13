@@ -178,10 +178,10 @@ print("Filled lungs.")
 
 #%% # Step 4: Check each voxel center (i, j, k) to see if it's inside the Bronchi
 if not os.path.exists(f"{BRONCHI_NAME}.vtk"):
-    lung_mesh = generate_lungs(volume)
-    lung_mesh.save(f"{BRONCHI_NAME}.vtk")
+    bronchi = generate_lungs(volume)
+    bronchi.save(f"{BRONCHI_NAME}.vtk")
 else:
-    lung_mesh = pv.read(f"{BRONCHI_NAME}.vtk")
+    bronchi = pv.read(f"{BRONCHI_NAME}.vtk")
 
 if not os.path.exists(f"{BRONCHI_NAME}.vtk") or not os.path.exists(f"{BRONCHI_NAME}.npy"):
     # --- Create Bronchial Tree -----
@@ -218,7 +218,7 @@ print("Filled bronchi.")
 
 #%%
 ''' PyVista Plotting '''
-# plot_lung_vista(lung_mesh, bronchi, jupyter=False)
+plot_lung_vista(lung_mesh, bronchi, jupyter=False)
 
 # %%
 ''' MatPlotLib Plotting '''

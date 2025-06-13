@@ -22,7 +22,7 @@ def plot_bronchi(bro,stride=1000):
     coords = bro[::stride]
     fig = plt.figure()
     ax = fig.add_subplot(projection='3d')
-    ax.scatter(*[[p[dim] for p in coords] for dim in range(coords.shape[-1])])
+    ax.scatter(*[[p[dim] for p in coords] for dim in range(coords.shape[-1])],marker='.')
     plt.show()
 
 def plot_sino(sino,stride=4):
