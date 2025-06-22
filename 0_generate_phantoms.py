@@ -212,7 +212,7 @@ print("Filled bronchi.")
 
 #%%
 ''' PyVista Plotting '''
-# plot_lung_vista(lung_mesh, bronchi_mesh, jupyter=False)
+plot_lung_vista(lung_mesh, bronchi_mesh, jupyter=False)
 
 # %%
 ''' MatPlotLib Plotting '''
