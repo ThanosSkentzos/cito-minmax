@@ -19,3 +19,4 @@ reconstructions/
 sr4zct_data*/
 *.pt
 phantoms/lung_512.npy
+*.npy
