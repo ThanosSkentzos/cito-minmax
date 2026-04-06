@@ -1,4 +1,4 @@
-# SR4ZCT: Self-Supervised Through-Plane Resolution Enhancement for CT Images
+# Replication of SR4ZCT: Self-Supervised Through-Plane Resolution Enhancement for CT Images with U-Net on synthetic phantoms
 
 A PyTorch implementation of self-supervised through-plane super-resolution for Computed Tomography volumes, built on the [SR4ZCT framework](https://link.springer.com/chapter/10.1007/978-3-031-44153-0_6) (Shi et al., 2023). Developed as the final project for the Computational Imaging and Tomography (CITO) course at Leiden University, under supervision of Prof. Dr. K.J. Batenburg (CWI Amsterdam / Leiden University).
 
